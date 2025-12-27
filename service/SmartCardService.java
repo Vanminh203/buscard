@@ -247,104 +247,76 @@ public class SmartCardService {
 
         return out;
     }
-
-    private byte[] aesEncryptInit(byte[] plain) throws Exception {
-
-    // pad block 16
-    if (plain.length % 16 != 0) {
-        int newLen = ((plain.length / 16) + 1) * 16;
-        plain = Arrays.copyOf(plain, newLen);
-    }
-
-    byte[] ivZero = new byte[16]; // toàn 0
-
-    Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
-    cipher.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(ivZero));
-
-    byte[] enc = cipher.doFinal(plain);
-
-    // output format: [IV][ciphertext]
-    byte[] out = new byte[16 + enc.length];
-    System.arraycopy(ivZero, 0, out, 0, 16);
-    System.arraycopy(enc, 0, out, 16, enc.length);
-
-    return out;
-}
      
     // VERIFY PIN
     public int verifyPinOnCard(String pin) throws Exception {
 
-    SmartCardService.CardInfo info = getCardInfo();
-    byte[] p = pin.getBytes();
-    byte[] data;
+        SmartCardService.CardInfo info = getCardInfo();
+        byte[] p = pin.getBytes();
+        byte[] data;
 
-    if (!info.pinChanged) {
+        if (!info.pinChanged) {
 
-        // plaintext PIN send
-        data = new byte[1 + p.length];
-        data[0] = (byte)p.length;
-        System.arraycopy(p,0,data,1,p.length);
+            // plaintext PIN send
+            data = new byte[1 + p.length];
+            data[0] = (byte)p.length;
+            System.arraycopy(p,0,data,1,p.length);
 
-        ResponseAPDU resp = send(INS_VERIFY_PIN, data);
+            ResponseAPDU resp = send(INS_VERIFY_PIN, data);
+            return resp.getSW();
+        }
+
+        // AES ENCRYPTED VERIFY PIN
+        byte[] plain = new byte[1 + p.length];
+        plain[0] = (byte)p.length;
+        System.arraycopy(p,0,plain,1,p.length);
+
+        byte[] enc = aesEncrypt(plain);
+        ResponseAPDU resp = send(INS_VERIFY_PIN, enc);
+
         return resp.getSW();
-    }
-
-    // AES ENCRYPTED VERIFY PIN
-    byte[] plain = new byte[1 + p.length];
-    plain[0] = (byte)p.length;
-    System.arraycopy(p,0,plain,1,p.length);
-
-    byte[] enc = aesEncrypt(plain);
-    ResponseAPDU resp = send(INS_VERIFY_PIN, enc);
-
-    return resp.getSW();
 }
-
 
     // NEW INIT_CARD (AES ENCRYPTED – NO PIN – WITH CCCD)
      
     public boolean initCard(String cardCode, String hoTen, String ngaySinh, String cccd)
         throws Exception {
 
-    byte[] code = cardCode.getBytes();
-    byte[] name = hoTen.getBytes();
-    byte[] dob  = ngaySinh.getBytes();
-    byte[] id   = cccd.getBytes();
+        byte[] code = cardCode.getBytes();
+        byte[] name = hoTen.getBytes();
+        byte[] dob  = ngaySinh.getBytes();
+        byte[] id   = cccd.getBytes();
 
-    byte[] plain = new byte[
-            1 + code.length +
-            1 + name.length +
-            1 + dob.length +
-            1 + id.length
-    ];
+        byte[] plain = new byte[
+                1 + code.length +
+                1 + name.length +
+                1 + dob.length +
+                1 + id.length
+        ];
 
-    int k = 0;
-    plain[k++] = (byte)code.length;
-    System.arraycopy(code, 0, plain, k, code.length);
-    k += code.length;
+        int k = 0;
+        plain[k++] = (byte)code.length;
+        System.arraycopy(code, 0, plain, k, code.length);
+        k += code.length;
 
-    plain[k++] = (byte)name.length;
-    System.arraycopy(name, 0, plain, k, name.length);
-    k += name.length;
+        plain[k++] = (byte)name.length;
+        System.arraycopy(name, 0, plain, k, name.length);
+        k += name.length;
 
-    plain[k++] = (byte)dob.length;
-    System.arraycopy(dob, 0, plain, k, dob.length);
-    k += dob.length;
+        plain[k++] = (byte)dob.length;
+        System.arraycopy(dob, 0, plain, k, dob.length);
+        k += dob.length;
 
-    plain[k++] = (byte)id.length;
-    System.arraycopy(id, 0, plain, k, id.length);
+        plain[k++] = (byte)id.length;
+        System.arraycopy(id, 0, plain, k, id.length);
 
-    // FIX: AES INIT — IV = 0
-    byte[] enc = aesEncryptInit(plain);
+        byte[] enc = aesEncrypt(plain);
 
-    ResponseAPDU resp = send(INS_INIT_CARD, enc);
-    return resp.getSW() == 0x9000;
+        ResponseAPDU resp = send(INS_INIT_CARD, enc);
+        return resp.getSW() == 0x9000;
 }
-
-
-
      
-    // SECURE UPDATE INFO (có CCCD)
+    // SECURE UPDATE INFO
      
     public boolean updatePersonalInfoOnCard(String name, String dob, String cccd)
             throws Exception {
@@ -378,7 +350,6 @@ public class SmartCardService {
         return resp.getSW() == 0x9000;
     }
 
-     
     // CHANGE PIN (AES ENCRYPT)
      
     public int changePin(String oldPin, String newPin) throws Exception {
@@ -442,30 +413,29 @@ public class SmartCardService {
     // GET INFO
     public CardInfo getCardInfo() throws Exception {
 
-    ResponseAPDU resp = sendLe(INS_GET_INFO, 255);
-    if (resp.getSW() != 0x9000) return null;
+        ResponseAPDU resp = sendLe(INS_GET_INFO, 255);
+        if (resp.getSW() != 0x9000) return null;
 
-    byte[] enc = resp.getData();
+        byte[] enc = resp.getData();
 
-    // CASE 1 — THẺ TRẮNG (plaintext)
-    // plaintext length luôn < 40 bytes
-    if (enc.length < 40) {
-        return parsePlainGetInfo(enc);
-    }
+        // CASE 1 — THẺ TRẮNG (plaintext)
+        // plaintext length luôn < 40 bytes
+        if (enc.length < 40) {
+            return parsePlainGetInfo(enc);
+        }
 
-    // CASE 2 — THẺ ĐÃ KHỞI TẠO: decrypt AES
-    byte[] iv = Arrays.copyOfRange(enc, 0, 16);
-    byte[] ciphertext = Arrays.copyOfRange(enc, 16, enc.length);
+        // CASE 2 — THẺ ĐÃ KHỞI TẠO: decrypt AES
+        byte[] iv = Arrays.copyOfRange(enc, 0, 16);
+        byte[] ciphertext = Arrays.copyOfRange(enc, 16, enc.length);
 
-    Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
-    cipher.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
+        Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
 
-    byte[] d = cipher.doFinal(ciphertext);
+        byte[] d = cipher.doFinal(ciphertext);
 
-    // parse decrypted data
-    return parsePlainGetInfo(d);
+        // parse decrypted data
+        return parsePlainGetInfo(d);
 }
-
 
     private CardInfo parsePlainGetInfo(byte[] d) throws Exception {
         int i = 0;

@@ -150,8 +150,7 @@ public class CardController {
 
         if (sw == 0x9000) {
 
-            // 1. Lấy cardCode ngay từ currentCard nếu đã load trước đó
-            // hoặc lấy từ getCardInfoOnlyCode() để tránh lấy nguyên cái info lớn
+            // 1. Lấy cardCode
             SmartCardService.CardInfo info = smartCardService.getCardInfo();
             String cardCode = info.cardCode; 
 
@@ -311,7 +310,6 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
 }
     
     // UPDATE INFO
-     
     public void updateInfo(String name, String dob, String cccd, byte[] photo) {
     try {
         boolean ok = smartCardService.updatePersonalInfoOnCard(name, dob, cccd);
@@ -326,7 +324,6 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
                 JOptionPane.showMessageDialog(mainFrame, "Lỗi ghi ảnh xuống thẻ!");
             }
         }
-        // Cập nhật UI sau khi đổi thông tin
         loadCardInfoToUI();
         JOptionPane.showMessageDialog(mainFrame, "Cập nhật thông tin thành công!");
 

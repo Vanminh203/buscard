@@ -195,42 +195,41 @@ public class KhoiTaoThe extends JFrame {
 
     private JPanel makeField(String title, JComponent field, String hint) {
 
-    JPanel box = new JPanel(new GridBagLayout());
-    box.setOpaque(false);
+        JPanel box = new JPanel(new GridBagLayout());
+        box.setOpaque(false);
 
-    GridBagConstraints gc = new GridBagConstraints();
-    gc.gridx = 0;
-    gc.gridy = 0;
-    gc.anchor = GridBagConstraints.WEST;
-    gc.insets = new Insets(0, 0, 4, 0);
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.gridx = 0;
+        gc.gridy = 0;
+        gc.anchor = GridBagConstraints.WEST;
+        gc.insets = new Insets(0, 0, 4, 0);
 
-    // Label chính
-    JLabel lb = new JLabel(title);
-    lb.setFont(new Font("Segoe UI", Font.BOLD, 12));
-    lb.setForeground(new Color(51, 65, 85));
-    box.add(lb, gc);
+        // Label chính
+        JLabel lb = new JLabel(title);
+        lb.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lb.setForeground(new Color(51, 65, 85));
+        box.add(lb, gc);
 
-    // Ô nhập
-    gc.gridy++;
-    gc.fill = GridBagConstraints.HORIZONTAL;
-    gc.weightx = 1;
-    gc.insets = new Insets(0, 0, 6, 0);
-    box.add(field, gc);
+        // Ô nhập
+        gc.gridy++;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.weightx = 1;
+        gc.insets = new Insets(0, 0, 6, 0);
+        box.add(field, gc);
 
-    // Hint
-    gc.gridy++;
-    gc.weightx = 1;
-    gc.insets = new Insets(0, 0, 0, 0);
+        // Hint
+        gc.gridy++;
+        gc.weightx = 1;
+        gc.insets = new Insets(0, 0, 0, 0);
 
-    JLabel hb = new JLabel(hint);
-    hb.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-    hb.setForeground(new Color(100, 116, 139));
-    box.add(hb, gc);
+        JLabel hb = new JLabel(hint);
+        hb.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        hb.setForeground(new Color(100, 116, 139));
+        box.add(hb, gc);
 
-    return box;
+        return box;
 }
-
-
+    
     private void styleTextField(JTextField tf) {
         tf.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         tf.setBackground(Color.WHITE);
@@ -245,7 +244,47 @@ public class KhoiTaoThe extends JFrame {
 
     //   Events  
     private void onChonAnh(ActionEvent e) {
-        chonAnh();
+        try {
+            JFileChooser chooser = new JFileChooser();
+            int res = chooser.showOpenDialog(this);
+            if (res != JFileChooser.APPROVE_OPTION) return;
+
+            File file = chooser.getSelectedFile();
+            BufferedImage img = ImageIO.read(file);
+            if (img == null) {
+                JOptionPane.showMessageDialog(this, "File không phải ảnh hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            int w = 150, h = 190;
+            BufferedImage scaled = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2 = scaled.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2.drawImage(img, 0, 0, w, h, null);
+            g2.dispose();
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(scaled, "jpg", baos);
+            baos.flush();
+            byte[] data = baos.toByteArray();
+            baos.close();
+
+            if (data.length > 31744) {
+                JOptionPane.showMessageDialog(this,
+                        "Ảnh sau khi nén vẫn quá lớn (>31KB). Hãy chọn ảnh nhỏ hơn!",
+                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            this.anhBytes = data;
+            lbPreview.setText(null);
+            lbPreview.setIcon(new ImageIcon(scaled));
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Lỗi khi chọn ảnh: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void onTaoThe(ActionEvent e) {
@@ -304,58 +343,13 @@ new SwingWorker<TheXeBus, Void>() {
         } catch (Exception ex) {
             ex.printStackTrace();
             showErr("Lỗi khi khởi tạo thẻ: " + ex.getMessage());
+            }
         }
+    }.execute();
     }
-
-}.execute();
-
-    }
+    
     private void showErr(String msg) {
         JOptionPane.showMessageDialog(this, msg, "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
-    }
-
-    private void chonAnh() {
-        try {
-            JFileChooser chooser = new JFileChooser();
-            int res = chooser.showOpenDialog(this);
-            if (res != JFileChooser.APPROVE_OPTION) return;
-
-            File file = chooser.getSelectedFile();
-            BufferedImage img = ImageIO.read(file);
-            if (img == null) {
-                JOptionPane.showMessageDialog(this, "File không phải ảnh hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            int w = 150, h = 190;
-            BufferedImage scaled = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g2 = scaled.createGraphics();
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2.drawImage(img, 0, 0, w, h, null);
-            g2.dispose();
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(scaled, "jpg", baos);
-            baos.flush();
-            byte[] data = baos.toByteArray();
-            baos.close();
-
-            if (data.length > 31744) {
-                JOptionPane.showMessageDialog(this,
-                        "Ảnh sau khi nén vẫn quá lớn (>31KB). Hãy chọn ảnh nhỏ hơn!",
-                        "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            this.anhBytes = data;
-            lbPreview.setText(null);
-            lbPreview.setIcon(new ImageIcon(scaled));
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Lỗi khi chọn ảnh: " + ex.getMessage(),
-                    "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
     }
 
     private boolean isValidDate(String date) {
@@ -368,9 +362,7 @@ new SwingWorker<TheXeBus, Void>() {
             return false;
         }
     }
-
     //   UI helpers  
-
     static class RoundedPanel extends JPanel {
         private final int radius;
         private final Color bg;
