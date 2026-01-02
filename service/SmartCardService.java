@@ -585,62 +585,60 @@ public class SmartCardService {
      
     public List<HistoryRecord> getHistory() throws Exception {
 
-        ResponseAPDU resp = sendLe(INS_GET_HISTORY,255);
-        if (resp.getSW()!=0x9000) return Collections.emptyList();
+            ResponseAPDU resp = sendLe(INS_GET_HISTORY,255);
+            if (resp.getSW()!=0x9000) return Collections.emptyList();
 
-        // ciphertext
-        byte[] enc = resp.getData();
+            // ciphertext
+            byte[] enc = resp.getData();
 
-        // tách IV và ciphertext
-        byte[] iv = Arrays.copyOfRange(enc, 0, 16);
-        byte[] ciphertext = Arrays.copyOfRange(enc, 16, enc.length);
+            // tách IV và ciphertext
+            byte[] iv = Arrays.copyOfRange(enc, 0, 16);
+            byte[] ciphertext = Arrays.copyOfRange(enc, 16, enc.length);
 
-        // decrypt
-        Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
-        cipher.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
-        byte[] d = cipher.doFinal(ciphertext);
+            // decrypt
+            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
+            byte[] d = cipher.doFinal(ciphertext);
 
-        int i=0;
+            int i=0;
 
-        int count = d[i++] & 0xFF;
+            int count = d[i++] & 0xFF;
 
-        List<HistoryRecord> out = new ArrayList<>();
+            List<HistoryRecord> out = new ArrayList<>();
 
-        for (int k=0;k<count;k++) {
+            for (int k=0;k<count;k++) {
 
-            HistoryRecord r = new HistoryRecord();
-            r.type = d[i++];
+                HistoryRecord r = new HistoryRecord();
+                r.type = d[i++];
 
-            r.amount = ((d[i]&0xFF)<<24)|((d[i+1]&0xFF)<<16)|
-                       ((d[i+2]&0xFF)<<8)|(d[i+3]&0xFF);
-            i+=4;
+                r.amount = ((d[i]&0xFF)<<24)|((d[i+1]&0xFF)<<16)|
+                           ((d[i+2]&0xFF)<<8)|(d[i+3]&0xFF);
+                i+=4;
 
-            r.timestamp = ((d[i]&0xFF)<<24)|((d[i+1]&0xFF)<<16)|
-                          ((d[i+2]&0xFF)<<8)|(d[i+3]&0xFF);
-            i+=4;
+                r.timestamp = ((d[i]&0xFF)<<24)|((d[i+1]&0xFF)<<16)|
+                              ((d[i+2]&0xFF)<<8)|(d[i+3]&0xFF);
+                i+=4;
 
-            out.add(r);
-        }
-        return out;
+                out.add(r);
+            }
+            return out;
     }
 
     // CARD OPS
      
     public boolean unlockCard(String pin) throws Exception {
-    byte[] p = pin.getBytes();
+        byte[] p = pin.getBytes();
 
-    byte[] data = new byte[1 + p.length];
-    data[0] = (byte)p.length;
-    System.arraycopy(p, 0, data, 1, p.length);
+        byte[] data = new byte[1 + p.length];
+        data[0] = (byte)p.length;
+        System.arraycopy(p, 0, data, 1, p.length);
 
-    boolean ok = send(INS_UNLOCK_CARD, data).getSW() == 0x9000;
-    if (ok) {
-        setupAES(pin);   
-    }
-    return ok;
+        boolean ok = send(INS_UNLOCK_CARD, data).getSW() == 0x9000;
+        if (ok) {
+            setupAES(pin);   
+        }
+        return ok;
 }
-
-
     public boolean deleteCard() throws Exception {
         return send(INS_DELETE_CARD,new byte[0]).getSW()==0x9000;
     }
@@ -660,8 +658,21 @@ public class SmartCardService {
         byte[] mod = pub.getModulus().toByteArray();
         byte[] exp = pub.getPublicExponent().toByteArray();
 
+        // Chỉ strip leading zero của modulus
+        if (mod.length > 1 && mod[0] == 0x00) {
+            mod = Arrays.copyOfRange(mod, 1, mod.length);
+        }
+
+        // KHÔNG strip exponent
         return new String[]{ bytesToHex(mod), bytesToHex(exp) };
+}
+    
+    private byte[] stripLeadingZero(byte[] in) {
+    if (in.length > 1 && in[0] == 0x00) {
+        return Arrays.copyOfRange(in, 1, in.length);
     }
+    return in;
+}
     public boolean rsaAuthenticateUsing(PublicKey pubKey) throws Exception {
 
         // tạo nonce random

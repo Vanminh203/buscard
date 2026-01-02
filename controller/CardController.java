@@ -228,10 +228,13 @@ public class CardController {
 
 private PublicKey buildPublicKey(String modHex, String expHex) throws Exception {
     KeyFactory kf = KeyFactory.getInstance("RSA");
-    BigInteger mod = new BigInteger(hexToBytes(modHex));
-    BigInteger exp = new BigInteger(hexToBytes(expHex));
+
+    BigInteger mod = new BigInteger(1, hexToBytes(modHex));  
+    BigInteger exp = new BigInteger(1, hexToBytes(expHex));
+
     return kf.generatePublic(new RSAPublicKeySpec(mod, exp));
 }
+
 
     // LOAD CARD INFO TO UI
     private void loadCardInfoToUI() {
