@@ -43,7 +43,8 @@ public class SmartCardService {
     private static final byte INS_TOP_UP      = (byte) 0x40;
     private static final byte INS_PAY_TICKET  = (byte) 0x41;
     private static final byte INS_SET_PASS    = (byte) 0x42;
-
+    
+    private static final byte INS_LOCK_CARD   = (byte) 0x50;
     private static final byte INS_UNLOCK_CARD = (byte) 0x51;
     
     private static final byte INS_DELETE_CARD = (byte) 0x60;
@@ -99,6 +100,7 @@ public class SmartCardService {
             return false;
         }
     }
+    
     public String generateCardCode() {
     lastCardSeq++;
     return (lastCardSeq < 10)
@@ -263,6 +265,9 @@ public class SmartCardService {
             System.arraycopy(p,0,data,1,p.length);
 
             ResponseAPDU resp = send(INS_VERIFY_PIN, data);
+            if (resp.getSW() == 0x6983) {
+            send(INS_LOCK_CARD, new byte[0]);
+        }
             return resp.getSW();
         }
 
@@ -273,7 +278,9 @@ public class SmartCardService {
 
         byte[] enc = aesEncrypt(plain);
         ResponseAPDU resp = send(INS_VERIFY_PIN, enc);
-
+        if (resp.getSW() == 0x6983) {
+           send(INS_LOCK_CARD, new byte[0]);
+}
         return resp.getSW();
 }
 
@@ -281,7 +288,7 @@ public class SmartCardService {
      
     public boolean initCard(String cardCode, String hoTen, String ngaySinh, String cccd)
         throws Exception {
-
+       
         byte[] code = cardCode.getBytes();
         byte[] name = hoTen.getBytes();
         byte[] dob  = ngaySinh.getBytes();
@@ -380,7 +387,8 @@ public class SmartCardService {
     // WRITE PHOTO
      
     public boolean writePhotoOnCard(byte[] img) throws Exception {
-
+        
+        setupAES("123456");
         if (img == null || img.length == 0) return true;
 
         int offset = 0;
@@ -490,45 +498,37 @@ public class SmartCardService {
     // READ PHOTO
     public byte[] readPhoto(short len) throws Exception {
 
-    byte[] out = new byte[len];
-    int off = 0;
+        byte[] out = new byte[len];
+        int off = 0;
 
-    final int CHUNK = 200;
+        while (off < len) {
 
-    while (off < len) {
+            int plainLen = len - off;
+            if (plainLen > 200) plainLen = 200;
 
-        int want = Math.min(CHUNK, len - off);
+            int paddedLen = ((plainLen + 15) / 16) * 16;
+            int le = 16 + paddedLen;
 
-        CommandAPDU cmd = new CommandAPDU(
-            CLA_APP,
-            INS_READ_PHOTO,
-            (off >> 8) & 0xFF,
-            off & 0xFF,
-            want
-        );
+            CommandAPDU cmd = new CommandAPDU(CLA_APP,INS_READ_PHOTO,(off >> 8) & 0xFF,off & 0xFF,le);
 
-        ResponseAPDU resp = transmit(cmd);
-        if (resp.getSW() != 0x9000) return null;
+            ResponseAPDU resp = transmit(cmd);
+            if (resp.getSW() != 0x9000) return null;
 
-        byte[] enc = resp.getData();
-        if (enc.length < 16) return null;
+            byte[] enc = resp.getData();
 
-        byte[] iv  = Arrays.copyOfRange(enc, 0, 16);
-        byte[] cph = Arrays.copyOfRange(enc, 16, enc.length);
+            byte[] iv  = Arrays.copyOfRange(enc, 0, 16);
+            byte[] cph = Arrays.copyOfRange(enc, 16, enc.length);
 
-        Cipher aes = Cipher.getInstance("AES/CBC/NoPadding");
-        aes.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
+            Cipher aes = Cipher.getInstance("AES/CBC/NoPadding");
+            aes.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(iv));
 
-        byte[] plain = aes.doFinal(cph);
+            byte[] plain = aes.doFinal(cph);
 
-        // COPY ĐÚNG SỐ BYTE BẠN YÊU CẦU
-        System.arraycopy(plain, 0, out, off, want);
-        off += want;
+            System.arraycopy(plain, 0, out, off, plainLen);
+            off += plainLen;
     }
-
     return out;
 }
-
     // MONEY OPS
     public boolean topUp(int amount) throws Exception {
         long ts = System.currentTimeMillis()/1000L;
@@ -623,9 +623,7 @@ public class SmartCardService {
             }
             return out;
     }
-
-    // CARD OPS
-     
+    
     public boolean unlockCard(String pin) throws Exception {
         byte[] p = pin.getBytes();
 
@@ -640,8 +638,14 @@ public class SmartCardService {
         return ok;
 }
     public boolean deleteCard() throws Exception {
-        return send(INS_DELETE_CARD,new byte[0]).getSW()==0x9000;
-    }
+        boolean ok = send(INS_DELETE_CARD,new byte[0]).getSW()==0x9000;
+        if (ok) {
+            // reset AES to default pin
+            setupAES("123456"); 
+        }
+        return ok;
+}
+
 
     private String bytesToHex(byte[] arr) {
         StringBuilder sb = new StringBuilder();

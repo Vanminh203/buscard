@@ -75,7 +75,6 @@ public class MainFrame extends javax.swing.JFrame {
     getContentPane().setBackground(new Color(241, 245, 249));
 
     // 1. SIDEBAR
-      
     JPanel menuContent = new JPanel() {
         @Override
         protected void paintComponent(Graphics g) {
@@ -219,7 +218,7 @@ public class MainFrame extends javax.swing.JFrame {
 
     // ẢNH
     lbThayanh = new JLabel("NO PHOTO", SwingConstants.CENTER);
-    lbThayanh.setPreferredSize(new Dimension(200, 120));
+    lbThayanh.setPreferredSize(new Dimension(210, 120));
     lbThayanh.setOpaque(true);
     lbThayanh.setBackground(new Color(226, 232, 240));
     lbThayanh.setBorder(BorderFactory.createLineBorder(new Color(203, 213, 225), 2, true));
@@ -372,40 +371,40 @@ public class MainFrame extends javax.swing.JFrame {
         doiMaPin.setVisible(true);
     }
 
-private void btnMoKhoaTheActionPerformed(java.awt.event.ActionEvent evt) {
-    TheXeBus the = cardController.getCurrentCard();
-    if (the == null) return;
+    private void btnMoKhoaTheActionPerformed(java.awt.event.ActionEvent evt) {
+        TheXeBus the = cardController.getCurrentCard();
+        if (the == null) return;
 
-    // 1. Kiểm tra thẻ có thật sự bị khóa
-    if (!the.isBiKhoa()) {
-        JOptionPane.showMessageDialog(this,
-                "Thẻ này hiện tại không bị khóa!",
-                "Không thể mở khóa",
-                JOptionPane.INFORMATION_MESSAGE);
-        return;
+        // 1. Kiểm tra thẻ có thật sự bị khóa
+        if (!the.isBiKhoa()) {
+            JOptionPane.showMessageDialog(this,
+                    "Thẻ này hiện tại không bị khóa!",
+                    "Không thể mở khóa",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // 2. Yêu cầu xác thực trước khi mở khóa (nhập PIN cũ)
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Thẻ đang bị khóa.\nBạn cần nhập đúng mã PIN cũ để mở khóa.\nTiếp tục?",
+                "Xác nhận mở khóa",
+                JOptionPane.YES_NO_OPTION
+        );
+
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        // 3. Mở form nhập PIN – loại mở khóa
+        NhapMaPin pinForm = new NhapMaPin(
+                this,
+                the,
+                cardController,
+                NhapMaPin.ActionType.UNLOCK  
+        );
+
+        pinForm.setLocationRelativeTo(this);
+        pinForm.setVisible(true);
     }
-
-    // 2. Yêu cầu xác thực trước khi mở khóa (nhập PIN cũ)
-    int confirm = JOptionPane.showConfirmDialog(
-            this,
-            "Thẻ đang bị khóa.\nBạn cần nhập đúng mã PIN cũ để mở khóa.\nTiếp tục?",
-            "Xác nhận mở khóa",
-            JOptionPane.YES_NO_OPTION
-    );
-
-    if (confirm != JOptionPane.YES_OPTION) return;
-
-    // 3. Mở form nhập PIN – loại mở khóa
-    NhapMaPin pinForm = new NhapMaPin(
-            this,
-            the,
-            cardController,
-            NhapMaPin.ActionType.UNLOCK  
-    );
-
-    pinForm.setLocationRelativeTo(this);
-    pinForm.setVisible(true);
-}
 
 
     private void btnDoiThongTinActionPerformed(java.awt.event.ActionEvent evt) {
@@ -506,6 +505,18 @@ private void btnMoKhoaTheActionPerformed(java.awt.event.ActionEvent evt) {
         btnXoaThe.setEnabled(true);
         btnLichSu.setEnabled(true);
     }
+    public void capNhatTrangThaiNut_KhiTheBiKhoa() {
+        btnMoKhoaThe.setEnabled(true);
+        btnNgatketnoi.setEnabled(true);
+        btnKhoiTaoThe.setEnabled(false);
+        btnNapTien.setEnabled(false);
+        btnThanhToan.setEnabled(false);
+        btnThayDoiMaPin.setEnabled(false);
+        btnDoiThongTin.setEnabled(false);
+        btnXoaThe.setEnabled(false);
+        btnLichSu.setEnabled(false);
+}
+
     public void enableReconnectButtons() {
         btnKhoiTaoThe.setEnabled(false);
         btnNgatketnoi.setEnabled(true);
@@ -604,6 +615,16 @@ private void btnMoKhoaTheActionPerformed(java.awt.event.ActionEvent evt) {
         lbThayanh.setText("NO PHOTO");
         capNhatTrangThaiNut(null);
     }
+    public void clearThongTinThe_OnlyInfo() {
+        lbSoTheValue.setText("...");
+        lbHoTenvalue.setText("...");
+        lbNgaySinhValue.setText("...");
+        lbCccdValue.setText("...");
+        lbSoDuValue.setText("--- VND");
+        if (lbVeHienTaiValue != null) lbVeHienTaiValue.setText("...");
+        lbThayanh.setIcon(null);
+        lbThayanh.setText("NO PHOTO");
+}
     
     public static void main(String args[]) {
 

@@ -142,26 +142,39 @@ public class NhapMaPin extends JFrame {
     }
 
     private JPanel makeField(String title, JComponent field, String hint) {
-        JPanel wrap = new JPanel();
+        JPanel wrap = new JPanel(new GridBagLayout());
         wrap.setOpaque(false);
-        wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
 
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.gridx = 0;
+        gc.anchor = GridBagConstraints.WEST;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.weightx = 1;
+        gc.insets = new Insets(0, 0, 4, 0);
+
+        // Label (PIN)
         JLabel lb = new JLabel(title);
         lb.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lb.setForeground(new Color(51, 65, 85));
+        gc.gridy = 0;
+        wrap.add(lb, gc);
 
+        // Input field
+        gc.gridy = 1;
+        gc.insets = new Insets(0, 0, 6, 0);
+        wrap.add(field, gc);
+
+        // Hint (PIN gồm 6 chữ số)
         JLabel hb = new JLabel(hint);
         hb.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         hb.setForeground(new Color(100, 116, 139));
-
-        wrap.add(lb);
-        wrap.add(Box.createRigidArea(new Dimension(0, 6)));
-        wrap.add(field);
-        wrap.add(Box.createRigidArea(new Dimension(0, 6)));
-        wrap.add(hb);
+        gc.gridy = 2;
+        gc.insets = new Insets(0, 0, 0, 0);
+        wrap.add(hb, gc);
 
         return wrap;
-    }
+}
+
 
     private void stylePassword(JPasswordField pf) {
         pf.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -188,48 +201,45 @@ public class NhapMaPin extends JFrame {
     // XỬ LÝ KHI BẤM OK
     private void onConfirm(ActionEvent e) {
 
-    String pin = new String(txtPin.getPassword()).trim();
+        String pin = new String(txtPin.getPassword()).trim();
 
-    // 1) LUỒNG MỞ KHÓA THẺ
-    if (actionType == ActionType.UNLOCK) {
-        boolean ul = cardController.unlockCard(pin);
-        if (!ul) return;
-        JOptionPane.showMessageDialog(this, "Mở khóa thành công!");
-        dispose();
-        return;
-    }
-    // 2) CÁC LUỒNG KHÁC PHẢI VERIFY PIN
-    boolean ok = cardController.verifyPin(pin);
-    if (!ok) return;
-    switch (actionType) {
-        case LOGIN -> {
-            // Không làm gì thêm, xác thực thành công là xong
+        // 1) LUỒNG MỞ KHÓA THẺ
+        if (actionType == ActionType.UNLOCK) {
+            boolean ul = cardController.unlockCard(pin);
+            if (!ul) return;
+            JOptionPane.showMessageDialog(this, "Mở khóa thành công!");
+            dispose();
+            return;
         }
-        case TOP_UP_REQUEST -> {
-            if (amount != null) {
-                if (!cardController.doRSAAuthentication()) return;
-                boolean nt = cardController.topUpDirect(amount);
-                if (nt) {
-                    JOptionPane.showMessageDialog(this, "Nạp tiền thành công!");
-                } else {
-                    JOptionPane.showMessageDialog(this,
-                            "Nạp tiền thất bại!",
-                            "Lỗi", JOptionPane.ERROR_MESSAGE);
+        // 2) CÁC LUỒNG KHÁC PHẢI VERIFY PIN
+        boolean ok = cardController.verifyPin(pin,this);
+        if (!ok) return;
+        switch (actionType) {
+            case LOGIN -> {
+            }
+            case TOP_UP_REQUEST -> {
+                if (amount != null) {
+                    boolean nt = cardController.topUpDirect(amount);
+                    if (nt) {
+                        JOptionPane.showMessageDialog(this, "Nạp tiền thành công!");
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                                "Nạp tiền thất bại!",
+                                "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
                 }
             }
-        }
-        case PAY -> {
-            if (amount != null) {
-                if (!cardController.doRSAAuthentication()) return;
-                cardController.pay(amount);
+            case PAY -> {
+                if (amount != null) {
+                    cardController.pay(amount);
+                }
             }
+            case DELETE_CARD ->
+                    cardController.deleteCard();
+            case UPDATE_INFO ->
+                    cardController.updateInfo(hoTenMoi, ngaySinhMoi, cccdMoi, anhMoi);
         }
-        case DELETE_CARD ->
-                cardController.deleteCard();
-        case UPDATE_INFO ->
-                cardController.updateInfo(hoTenMoi, ngaySinhMoi, cccdMoi, anhMoi);
-    }
-    dispose();
+        dispose();
 }
 
 }

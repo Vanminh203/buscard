@@ -329,12 +329,10 @@ new SwingWorker<TheXeBus, Void>() {
 
                 JOptionPane.showMessageDialog(
                         KhoiTaoThe.this,
-                        "Khởi tạo thẻ thành công\n"
-                      + "Mã PIN mặc định: 123456",
+                        "Khởi tạo thẻ thành công\n" + "Mã PIN mặc định: 123456\n",
                         "Thông báo",
                         JOptionPane.INFORMATION_MESSAGE
                 );
-
                 dispose();
             } else {
                 showErr("Tạo thẻ thất bại. Vui lòng kiểm tra kết nối thẻ/đầu đọc!");

@@ -1,6 +1,8 @@
 package controller;
 
 import database.CardKeyRepository;
+import java.awt.KeyboardFocusManager;
+import static java.awt.SystemColor.info;
 import ui.MainFrame;
 import ui.NhapMaPin;
 import service.SmartCardService;
@@ -97,17 +99,44 @@ public class CardController {
             mainFrame.capNhatTrangThaiNut(null);
             return;
         }
+        // Xác thực RSA nếu thẻ đã khởi tạo
+        try {
+            if (!doRSAAuthentication()) {
+                JOptionPane.showMessageDialog(
+                    mainFrame,
+                    "Xác thực RSA thất bại! Thẻ không hợp lệ hoặc bị giả lập.",
+                    "Lỗi bảo mật",
+                    JOptionPane.ERROR_MESSAGE
+                );
+                smartCardService.disconnectCard();
+                return;
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(
+                mainFrame,
+                "Không thể thực hiện xác thực RSA!",
+                "Lỗi bảo mật",
+                JOptionPane.ERROR_MESSAGE
+            );
+            smartCardService.disconnectCard();
+            return;
+        }
 
         // 5. Thẻ khóa
         if (info.locked) {
-            JOptionPane.showMessageDialog(mainFrame,
-                "Thẻ đã bị khóa do nhập sai PIN quá số lần cho phép.\n" +
-                "Vui lòng mở khóa thẻ để tiếp tục.",
-                "Thẻ bị khóa", JOptionPane.ERROR_MESSAGE);
-            loadCardInfoToUI();
-            mainFrame.capNhatTrangThaiNut(getCurrentCard());
-            return;
-        }
+
+    // 1) Tạo currentCard nhưng không hiển thị UI
+        currentCard = new TheXeBus(info.cardCode,info.hoTen,info.ngaySinh,info.cccd,info.balance,true,null,info.passType,info.passExpire
+        );
+
+        JOptionPane.showMessageDialog(mainFrame,
+            "Thẻ đã bị khóa do nhập sai PIN quá số lần cho phép.\nVui lòng mở khóa thẻ để tiếp tục.",
+            "Thẻ bị khóa", JOptionPane.ERROR_MESSAGE);
+        mainFrame.clearThongTinThe_OnlyInfo();
+        mainFrame.capNhatTrangThaiNut_KhiTheBiKhoa();
+
+        return;
+}
 
         // 6. Nhập PIN
         NhapMaPin pinForm = new NhapMaPin(
@@ -144,59 +173,27 @@ public class CardController {
         mainFrame.clearThongTinThe();
     }
     // VERIFY PIN
-    public boolean verifyPin(String pin) {
+    public boolean verifyPin(String pin, Window pinWindow) {
     try {
         int sw = smartCardService.verifyPinOnCard(pin);
 
+        // PIN đúng
         if (sw == 0x9000) {
 
-            // 1. Lấy cardCode
-            SmartCardService.CardInfo info = smartCardService.getCardInfo();
-            String cardCode = info.cardCode; 
-
-            // 2. RSA Verify
-            try {
-                CardKeyRepository repo = new CardKeyRepository();
-                String[] pub = repo.getKey(cardCode);
-
-                if (pub == null) {
-                    JOptionPane.showMessageDialog(mainFrame,
-                            "Không tìm thấy public key trong DB!");
-                    return false;
-                }
-
-                PublicKey pk = buildPublicKey(pub[0], pub[1]);
-                boolean ok = smartCardService.rsaAuthenticateUsing(pk);
-
-                if (!ok) {
-                    JOptionPane.showMessageDialog(mainFrame,
-                        "RSA verify thất bại!",
-                        "Lỗi RSA", JOptionPane.ERROR_MESSAGE);
-                    return false;
-                }
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(mainFrame,
-                        "Lỗi RSA: " + ex.getMessage());
-                return false;
-            }
-
-            // Xác thực thành công
             authenticated = true;
 
             if (reconnecting) {
                 JOptionPane.showMessageDialog(mainFrame,
-                    "Kết nối lại thẻ thành công!");
+                        "Kết nối lại thẻ thành công!");
                 mainFrame.enableReconnectButtons();
                 reconnecting = false;
             }
 
-            // **Load info đúng 1 lần**
             loadCardInfoToUI();
             return true;
         }
 
-        // ====== Xử lý lỗi ======
+        //Sai PIN nhưng chưa khóa (63Cx)
         if ((sw & 0xFFF0) == 0x63C0) {
             int remain = sw & 0xF;
             JOptionPane.showMessageDialog(mainFrame,
@@ -204,18 +201,41 @@ public class CardController {
             return false;
         }
 
+        //THẺ BỊ KHÓA
         if (sw == 0x6983) {
+
             JOptionPane.showMessageDialog(mainFrame,
                     "Thẻ đã bị khóa!");
 
-            loadCardInfoToUI();
-            for (Window w : Window.getWindows()) {
-                if (w instanceof NhapMaPin) w.dispose();
+            // Lấy thông tin thẻ TỪ CHIP để tạo currentCard
+            SmartCardService.CardInfo info = smartCardService.getCardInfo();
+
+            if (currentCard == null) {
+                currentCard = new TheXeBus(
+                        info.cardCode,
+                        info.hoTen,
+                        info.ngaySinh,
+                        info.cccd,
+                        info.balance,
+                        true,                // locked = true
+                        null,
+                        info.passType,
+                        info.passExpire
+                );
+            } else {
+                currentCard.setBiKhoa(true);
             }
-            mainFrame.capNhatTrangThaiNut(currentCard);
+
+            mainFrame.clearThongTinThe_OnlyInfo();
+            mainFrame.capNhatTrangThaiNut_KhiTheBiKhoa();
+            if (pinWindow != null) {
+                pinWindow.dispose();
+            }
+
             return false;
         }
 
+        //Các lỗi khác
         JOptionPane.showMessageDialog(mainFrame,
                 "Lỗi không xác định! SW = " + Integer.toHexString(sw));
         return false;
@@ -226,6 +246,7 @@ public class CardController {
     }
 }
 
+
 private PublicKey buildPublicKey(String modHex, String expHex) throws Exception {
     KeyFactory kf = KeyFactory.getInstance("RSA");
 
@@ -234,7 +255,6 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
 
     return kf.generatePublic(new RSAPublicKeySpec(mod, exp));
 }
-
 
     // LOAD CARD INFO TO UI
     private void loadCardInfoToUI() {
@@ -448,9 +468,9 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
                         "Thẻ bị khóa",
                         JOptionPane.ERROR_MESSAGE
                 );
-
-                loadCardInfoToUI();
-                mainFrame.capNhatTrangThaiNut(getCurrentCard());
+                if (currentCard != null) currentCard.setBiKhoa(true);
+                mainFrame.clearThongTinThe_OnlyInfo();
+                mainFrame.capNhatTrangThaiNut_KhiTheBiKhoa();
                 return 2;
             }
             // Các lỗi khác
@@ -471,21 +491,8 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
             loadCardInfoToUI();
             return 0;
         }
-
-        // CHANGE_PIN trả lỗi 63Cx (hiếm gặp)
-        if ((sw & 0xFFF0) == 0x63C0) {
-            int remain = sw & 0x000F;
-
-            JOptionPane.showMessageDialog(
-                    mainFrame,
-                    "Sai mã PIN cũ! Bạn còn " + remain + " lần thử.",
-                    "PIN sai",
-                    JOptionPane.ERROR_MESSAGE
-            );
-
-            return 1;
-        }
-        // Lỗi phổ biến: AES key không hợp lệ hoặc không verify trước
+        
+        // AES key không hợp lệ hoặc không verify trước
         if (sw == 0x6982) {
             JOptionPane.showMessageDialog(
                     mainFrame,
@@ -504,9 +511,9 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
                     "Thẻ bị khóa",
                     JOptionPane.ERROR_MESSAGE
             );
-
-            loadCardInfoToUI();
-            mainFrame.capNhatTrangThaiNut(getCurrentCard());
+            if (currentCard != null) currentCard.setBiKhoa(true);
+            mainFrame.clearThongTinThe_OnlyInfo();
+            mainFrame.capNhatTrangThaiNut_KhiTheBiKhoa();
             return 2;
         }
         // Các lỗi khác
@@ -516,7 +523,6 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
                 "Lỗi",
                 JOptionPane.ERROR_MESSAGE
         );
-
         return -1;
 
     } catch (Exception e) {
@@ -633,7 +639,6 @@ private PublicKey buildPublicKey(String modHex, String expHex) throws Exception 
                         JOptionPane.ERROR_MESSAGE
                 );
             }
-
             return ok;
 
         } catch (Exception ex) {

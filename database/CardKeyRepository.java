@@ -11,13 +11,9 @@ public class CardKeyRepository {
     private final Firestore db;
 
     public CardKeyRepository() throws Exception {
-        // Lấy Firestore instance từ FirebaseConfig
         this.db = FirebaseConfig.getDb();
     }
-
-    //    =
     // SAVE RSA KEY
-    //    =
     public void saveKey(String cardCode, String modulus, String exponent) throws Exception {
 
         Map<String, Object> data = new HashMap<>();
@@ -29,10 +25,7 @@ public class CardKeyRepository {
           .set(data)
           .get(); // wait for completion
     }
-
-    //    =
     // GET RSA KEY
-    //    =
     public String[] getKey(String cardCode) throws Exception {
 
         DocumentSnapshot doc = db.collection("card_keys")
@@ -48,7 +41,6 @@ public class CardKeyRepository {
         };
     }
 
-    // (Optional – dùng khi delete card)
     public void deleteKey(String cardCode) throws Exception {
         db.collection("card_keys")
           .document(cardCode)

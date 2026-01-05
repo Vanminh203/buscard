@@ -80,7 +80,7 @@ public class DoiMaPin extends JFrame {
         stylePassword(txtNhapLai);
         ((AbstractDocument) txtNhapLai.getDocument()).setDocumentFilter(new InputFilters.NumericLimitFilter(6));
 
-        form.add(makeField("PIN cũ", txtPinCu, "Nhập 6 chữ số PIN ban đầu"));
+        form.add(makeField("PIN cũ", txtPinCu, "Nhập mã PIN cũ gồm 6 chữ số"));
         form.add(Box.createRigidArea(new Dimension(0, 10)));
         form.add(makeField("PIN mới", txtPinMoi, "Mã PIN mới gồm 6 chữ số"));
         form.add(Box.createRigidArea(new Dimension(0, 10)));
