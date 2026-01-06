@@ -20,18 +20,12 @@ public class CardKeyRepository {
         data.put("modulus", modulus);
         data.put("exponent", exponent);
 
-        db.collection("card_keys")
-          .document(cardCode)
-          .set(data)
-          .get(); // wait for completion
+        db.collection("card_keys").document(cardCode).set(data).get();
     }
     // GET RSA KEY
     public String[] getKey(String cardCode) throws Exception {
 
-        DocumentSnapshot doc = db.collection("card_keys")
-                                 .document(cardCode)
-                                 .get()
-                                 .get();
+        DocumentSnapshot doc = db.collection("card_keys").document(cardCode).get().get();
 
         if (!doc.exists()) return null;
 
@@ -42,9 +36,6 @@ public class CardKeyRepository {
     }
 
     public void deleteKey(String cardCode) throws Exception {
-        db.collection("card_keys")
-          .document(cardCode)
-          .delete()
-          .get();
+        db.collection("card_keys").document(cardCode).delete().get();
     }
 }
