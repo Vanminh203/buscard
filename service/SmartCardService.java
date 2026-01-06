@@ -268,6 +268,9 @@ public class SmartCardService {
             if (resp.getSW() == 0x6983) {
             send(INS_LOCK_CARD, new byte[0]);
         }
+            if (resp.getSW() == 0x9000) {
+                setupAES(pin); 
+    }
             return resp.getSW();
         }
 
@@ -281,6 +284,9 @@ public class SmartCardService {
         if (resp.getSW() == 0x6983) {
            send(INS_LOCK_CARD, new byte[0]);
 }
+        if (resp.getSW() == 0x9000) {
+            setupAES(pin); 
+    }
         return resp.getSW();
 }
 
@@ -513,7 +519,6 @@ public class SmartCardService {
 
             ResponseAPDU resp = transmit(cmd);
             if (resp.getSW() != 0x9000) return null;
-
             byte[] enc = resp.getData();
 
             byte[] iv  = Arrays.copyOfRange(enc, 0, 16);

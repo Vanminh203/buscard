@@ -52,13 +52,13 @@ public class DoiThongTin extends JFrame {
     }
 
     private void buildUI() {
-        //  ==== Root  ====
+        //   Root  
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(new Color(241, 245, 249)); // #F1F5F9
         root.setBorder(new EmptyBorder(22, 22, 22, 22));
         setContentPane(root);
 
-        //  ==== Header  ====
+        //   Header  
         JPanel header = new JPanel();
         header.setOpaque(false);
         header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
@@ -79,13 +79,13 @@ public class DoiThongTin extends JFrame {
 
         root.add(header, BorderLayout.NORTH);
 
-        //  ==== Card container  ====
+        //   Card container  
         JPanel card = new KhoiTaoThe.RoundedPanel(18, Color.WHITE);
         card.setLayout(new BorderLayout());
         card.setBorder(new EmptyBorder(18, 18, 18, 18));
         root.add(card, BorderLayout.CENTER);
 
-        //  ==== Main content  ====
+        //   Main content  
         JPanel content = new JPanel(new GridBagLayout());
         content.setOpaque(false);
         card.add(content, BorderLayout.CENTER);
@@ -169,7 +169,7 @@ public class DoiThongTin extends JFrame {
         gc.weightx = 0.65;
         content.add(right, gc);
 
-        //  ==== Footer buttons  ====
+        //   Footer buttons  
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         footer.setOpaque(false);
 
@@ -240,7 +240,7 @@ public class DoiThongTin extends JFrame {
         tf.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
     }
 
-    //  ==== Load dữ liệu hiện tại lên form  ====
+    //   Load dữ liệu hiện tại lên form  
     private void loadCurrentData() {
         if (theHienTai == null) return;
 
@@ -268,7 +268,7 @@ public class DoiThongTin extends JFrame {
         }
     }
 
-    //  ==== Events  ====
+    //   Events  
 
     private void onThayAnh(ActionEvent e) {
         chonAnhMoi();
